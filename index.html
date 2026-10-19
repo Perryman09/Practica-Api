@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>APEX // DRIVE - Global Vehicle Intelligence & Interactive Showroom</title>
+  <meta name="description"
+    content="Portal interactivo desarrollado en React para explorar modelos de vehículos de todo el mundo con sonidos originales de motor, fotografía en alta resolución y telemetría en vivo.">
+
+  <!-- Google Fonts: Orbitron & Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@500;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <!-- Estilos CSS Cyber-Automotive -->
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- React 18, ReactDOM 18 y Babel Standalone (Para ejecución inmediata sin build step) -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+
+<body>
+
+  <!-- Canvas de Partículas y Luz Ambiental -->
+  <canvas id="particle-canvas"></canvas>
+  <div class="ambient-glow" id="ambientGlow"></div>
+  <div class="ambient-grid"></div>
+
+  <!-- Raíz de la Aplicación React -->
+  <div id="root"></div>
+
+  <!-- Script del Canvas -->
+  <script src="js/particles.js"></script>
+
+  <!-- Aplicación React 18 -->
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // CDN base de grabaciones auténticas de escapes y motores reales
+    const SOUND_CDN = 'https://cdn.jsdelivr.net/gh/sathyaram/exhaustnotes@master/public/sounds/';
+
+    // -------------------------------------------------------------------------
+    // 1. Base de Datos de Fabricantes Mundiales con Sonido Original de Motor
+    // -------------------------------------------------------------------------
+    const BRANDS_DATABASE = [
+      {
+        id: 'ferrari',
+        name: 'Ferrari',
+        country: 'Italia',
+        flag: '🇮🇹',
+        emblem: '🐎',
+        color: '#ff1801',
+        tagline: 'Essenza di Velocità',
+        heroModel: 'F8 Tributo',
+        heroHp: '720 HP',
+        heroSpeed: '340 km/h',
+        heroZeroToHundred: '2.9 s',
+        heroImg: 'https://images.unsplash.com/photo-1592198084033-aade902d1aae?auto=format&fit=crop&w=1200&q=80',
+        engine: '3.9L 90° V8 Twin-Turbo F154',
+        transmission: '7-Speed Dual Clutch F1',
+        drive: 'RWD (Propulsión Trasera)',
+        soundUrl: SOUND_CDN + 'ferrari458.m4a',
+        soundName: 'Ferrari V8 F136 / F154 Twin-Turbo Exhaust Screamer'
+      },
+      {
+        id: 'porsche',
+        name: 'Porsche',
+        country: 'Alemania',
+        flag: '🇩🇪',
+        emblem: '🏁',
+        color: '#ffd000',
+        tagline: 'There is No Substitute',
+        heroModel: '911 GT3 RS',
+        heroHp: '525 HP',
+        heroSpeed: '296 km/h',
+        heroZeroToHundred: '3.2 s',
+        heroImg: 'https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&w=1200&q=80',
+        engine: '4.0L Boxer-6 Atmosférico 9000 RPM',
+        transmission: '7-Speed Porsche Doppelkupplung (PDK)',
+        drive: 'RWD (Eje trasero direccional)',
+        soundUrl: SOUND_CDN + '911gt2rs.m4a',
+        soundName: 'Porsche 911 Flat-6 Twin-Turbo Howl'
+      },
+      {
+        id: 'lamborghini',
+        name: 'Lamborghini',
+        country: 'Italia',
+        flag: '🇮🇹',
+        emblem: '🐂',
+        color: '#22c55e',
+        tagline: 'Expect the Unexpected',
+        heroModel: 'Revuelto',
+        heroHp: '1,015 HP',
+        heroSpeed: '350 km/h',
+        heroZeroToHundred: '2.5 s',
+        heroImg: 'https://images.unsplash.com/photo-1544829099-b9a0c07fad1a?auto=format&fit=crop&w=1200&q=80',
+        engine: '6.5L V12 Híbrido Enchufable (3 Motores Eléctricos)',
+        transmission: '8-Speed Doble Embrague Transversal',
+        drive: 'AWD (Tracción Total Inteligente)',
+        soundUrl: SOUND_CDN + 'huracan.m4a',
+        soundName: 'Lamborghini 5.2L V10 & V12 Naturalmente Aspirado'
+      },
+      {
+        id: 'bmw',
+        name: 'BMW M',
+        country: 'Alemania',
+        flag: '🇩🇪',
+        emblem: '🏎️',
+        color: '#0066ff',
+        tagline: 'The Ultimate Driving Machine',
+        heroModel: 'M3 Competition',
+        heroHp: '510 HP',
+        heroSpeed: '290 km/h',
+        heroZeroToHundred: '3.5 s',
+        heroImg: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1200&q=80',
+        engine: '3.0L M TwinPower Turbo 6 Cilindros en Línea S58',
+        transmission: '8-Speed M Steptronic con Drivelogic',
+        drive: 'M xDrive AWD / 2WD RWD switchable',
+        soundUrl: SOUND_CDN + 'm4.m4a',
+        soundName: 'BMW M S58 TwinPower Turbo Inline-6 Exhaust'
+      },
+      {
+        id: 'tesla',
+        name: 'Tesla',
+        country: 'EE.UU.',
+        flag: '🇺🇸',
+        emblem: '⚡',
+        color: '#00f2fe',
+        tagline: 'Beyond Hypercar Acceleration',
+        heroModel: 'Model S Plaid',
+        heroHp: '1,020 HP',
+        heroSpeed: '322 km/h',
+        heroZeroToHundred: '1.99 s',
+        heroImg: 'https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&w=1200&q=80',
+        engine: 'Tri-Motor Eléctrico con Rotores de Carbono',
+        transmission: 'Transmisión Directa de 1 Velocidad',
+        drive: 'All-Wheel Drive con Torque Vectoring',
+        soundUrl: null, // Motor eléctrico supersónico sintetizado
+        soundName: 'Tesla Tri-Motor Electric Turbine & Inverter Whine'
+      },
+      {
+        id: 'mclaren',
+        name: 'McLaren',
+        country: 'Reino Unido',
+        flag: '🇬🇧',
+        emblem: '🚀',
+        color: '#f97316',
+        tagline: 'Fearlessly Forward',
+        heroModel: '750S Spider',
+        heroHp: '750 HP',
+        heroSpeed: '332 km/h',
+        heroZeroToHundred: '2.8 s',
+        heroImg: 'https://images.unsplash.com/photo-1621135802920-133df287f89c?auto=format&fit=crop&w=1200&q=80',
+        engine: '4.0L M840T Twin-Turbo V8',
+        transmission: '7-Speed SSG Seamless Shift Gearbox',
+        drive: 'RWD (Propulsión Trasera)',
+        soundUrl: SOUND_CDN + '720s.m4a',
+        soundName: 'McLaren M840T Twin-Turbo V8 Exhaust Roar'
+      },
+      {
+        id: 'aston martin',
+        name: 'Aston Martin',
+        country: 'Reino Unido',
+        flag: '🇬🇧',
+        emblem: '👑',
+        color: '#10b981',
+        tagline: 'Power, Beauty & Soul',
+        heroModel: 'DBS 770 Ultimate',
+        heroHp: '770 HP',
+        heroSpeed: '340 km/h',
+        heroZeroToHundred: '3.2 s',
+        heroImg: 'https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?auto=format&fit=crop&w=1200&q=80',
+        engine: '5.2L Bi-Turbo V12 48 Válvulas',
+        transmission: '8-Speed Automática ZF',
+        drive: 'RWD con Diferencial Mecánico LSD',
+        soundUrl: SOUND_CDN + 'vantage2010.m4a',
+        soundName: 'Aston Martin V8 & V12 Symphony Exhaust'
+      },
+      {
+        id: 'ford',
+        name: 'Ford Performance',
+        country: 'EE.UU.',
+        flag: '🇺🇸',
+        emblem: '🐎',
+        color: '#38bdf8',
+        tagline: 'Pure American Muscle',
+        heroModel: 'Mustang Dark Horse',
+        heroHp: '500 HP',
+        heroSpeed: '280 km/h',
+        heroZeroToHundred: '3.7 s',
+        heroImg: 'https://images.unsplash.com/photo-1584345604476-8ec5e12e42dd?auto=format&fit=crop&w=1200&q=80',
+        engine: '5.0L Coyote V8 Atmosférico Gen 4',
+        transmission: 'Tremec 6-Speed Manual / 10-Speed SelectShift',
+        drive: 'RWD con Torsen Differential',
+        soundUrl: SOUND_CDN + 'shelbygt350.m4a',
+        soundName: 'Ford Shelby GT350 / Coyote V8 Flat-Plane Rumble'
+      },
+      {
+        id: 'toyota',
+        name: 'Toyota Gazoo Racing',
+        country: 'Japón',
+        flag: '🇯🇵',
+        emblem: '🏁',
+        color: '#ef4444',
+        tagline: 'Pushing The Limits For Better',
+        heroModel: 'GR Supra GT4',
+        heroHp: '430 HP',
+        heroSpeed: '275 km/h',
+        heroZeroToHundred: '3.9 s',
+        heroImg: 'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=1200&q=80',
+        engine: '3.0L Turbo 6 Cilindros B58 / 2JZ',
+        transmission: '6-Speed Manual Inteligente (iMT)',
+        drive: 'RWD con Reparto Activo de Par',
+        soundUrl: SOUND_CDN + 'toyota86.m4a',
+        soundName: 'Toyota Gazoo Racing GR Boxer-4 & Turbo Revs'
+      },
+      {
+        id: 'nissan',
+        name: 'Nissan Nismo',
+        country: 'Japón',
+        flag: '🇯🇵',
+        emblem: '👹',
+        color: '#f43f5e',
+        tagline: 'The Legendary Godzilla',
+        heroModel: 'GT-R Nismo (R35)',
+        heroHp: '600 HP',
+        heroSpeed: '330 km/h',
+        heroZeroToHundred: '2.5 s',
+        heroImg: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80',
+        engine: '3.8L Twin-Turbo V6 VR38DETT Ensamblado a Mano',
+        transmission: '6-Speed Dual Clutch Transaxle',
+        drive: 'ATTESA E-TS All-Wheel Drive',
+        soundUrl: SOUND_CDN + 'nissangtr.m4a',
+        soundName: 'Nissan GT-R VR38DETT Twin-Turbo Launch & Exhaust'
+      },
+      {
+        id: 'audi',
+        name: 'Audi Sport',
+        country: 'Alemania',
+        flag: '🇩🇪',
+        emblem: '⭕',
+        color: '#e11d48',
+        tagline: 'Vorsprung durch Technik',
+        heroModel: 'R8 V10 Performance',
+        heroHp: '620 HP',
+        heroSpeed: '331 km/h',
+        heroZeroToHundred: '3.1 s',
+        heroImg: 'https://images.unsplash.com/photo-1606016159991-dfe4f2746ad5?auto=format&fit=crop&w=1200&q=80',
+        engine: '5.2L FSI V10 Atmosférico',
+        transmission: '7-Speed S Tronic',
+        drive: 'quattro Permanent All-Wheel Drive',
+        soundUrl: SOUND_CDN + 'audir8.m4a',
+        soundName: 'Audi 5.2L V10 FSI Naturally Aspirated Screamer'
+      },
+      {
+        id: 'mercedes-benz',
+        name: 'Mercedes-AMG',
+        country: 'Alemania',
+        flag: '🇩🇪',
+        emblem: '⭐',
+        color: '#a855f7',
+        tagline: 'One Man, One Engine',
+        heroModel: 'AMG GT Black Series',
+        heroHp: '730 HP',
+        heroSpeed: '325 km/h',
+        heroZeroToHundred: '3.2 s',
+        heroImg: 'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&w=1200&q=80',
+        engine: '4.0L V8 Biturbo con Cigüeñal Plano M178',
+        transmission: 'AMG SPEEDSHIFT DCT 7G',
+        drive: 'RWD con 9 Niveles de Control de Tracción',
+        soundUrl: SOUND_CDN + 'amggtr.m4a',
+        soundName: 'Mercedes-AMG 4.0L Biturbo V8 Deep Growl'
+      }
+    ];
+
+    // Mapeo específico de sonido según el modelo de vehículo
+    function resolveModelSound(modelName, brand) {
+      if (!modelName) return { url: brand.soundUrl, name: brand.soundName };
+      const lower = modelName.toLowerCase();
+
+      if (lower.includes('corvette')) return { url: SOUND_CDN + 'corvette.m4a', name: 'Chevrolet Corvette 6.2L LT2 V8 Small Block' };
+      if (lower.includes('hellcat') || lower.includes('charger') || lower.includes('challenger')) return { url: SOUND_CDN + 'hellcat.m4a', name: 'Dodge SRT Hellcat 6.2L Supercharged HEMI V8' };
+      if (lower.includes('focus')) return { url: SOUND_CDN + 'focusrs.m4a', name: 'Ford Focus RS 2.3L EcoBoost Turbo' };
+      if (lower.includes('ford gt') || (brand.id === 'ford' && lower === 'gt')) return { url: SOUND_CDN + 'fordgt.m4a', name: 'Ford GT 3.5L Twin-Turbo EcoBoost V6' };
+      if (lower.includes('lfa')) return { url: SOUND_CDN + 'lexuslfa.m4a', name: 'Lexus LFA 4.8L 1LR-GUE 72° V10 F1 Roar' };
+      if (lower.includes('e63') || lower.includes('e 63')) return { url: SOUND_CDN + 'e63.m4a', name: 'Mercedes-AMG E 63 S 4.0L V8 Biturbo' };
+      if (lower.includes('viper')) return { url: SOUND_CDN + 'viper.m4a', name: 'Dodge Viper 8.4L V10 Torque Monster' };
+      if (lower.includes('camaro')) return { url: SOUND_CDN + 'camarozl1.m4a', name: 'Chevrolet Camaro ZL1 6.2L Supercharged LT4 V8' };
+      if (lower.includes('tt rs') || lower.includes('ttrs')) return { url: SOUND_CDN + 'audittrs.m4a', name: 'Audi 2.5L TFSI 5-Cilindros Turbo' };
+      if (lower.includes('panamera')) return { url: SOUND_CDN + 'panamaraturbo.m4a', name: 'Porsche Panamera Turbo 4.0L V8' };
+
+      return { url: brand.soundUrl, name: brand.soundName };
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. Galerías Exclusivas de Fotos Auténticas por Fabricante (Sin Mezclas)
+    // -------------------------------------------------------------------------
+    const BRAND_GALLERIES = {
+      ferrari: [
+        'https://images.unsplash.com/photo-1592198084033-aade902d1aae?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80'
+      ],
+      porsche: [
+        'https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1611859328053-3cbc9f9399f4?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=800&q=80'
+      ],
+      lamborghini: [
+        'https://images.unsplash.com/photo-1544829099-b9a0c07fad1a?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1525609004556-c46c7d6cf023?auto=format&fit=crop&w=800&q=80'
+      ],
+      bmw: [
+        'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1523983388277-336a66bf9bcd?auto=format&fit=crop&w=800&q=80'
+      ],
+      tesla: [
+        'https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1571127236794-81c0bbfe1ce3?auto=format&fit=crop&w=800&q=80'
+      ],
+      mclaren: [
+        'https://images.unsplash.com/photo-1621135802920-133df287f89c?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1553440569-bcc63803a83d?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=800&q=80'
+      ],
+      'aston martin': [
+        'https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80'
+      ],
+      ford: [
+        'https://images.unsplash.com/photo-1584345604476-8ec5e12e42dd?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1508974239320-0a029497e820?auto=format&fit=crop&w=800&q=80'
+      ],
+      toyota: [
+        'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1590362891991-f776e747a588?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1621135802920-133df287f89c?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1508974239320-0a029497e820?auto=format&fit=crop&w=800&q=80'
+      ],
+      nissan: [
+        'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80'
+      ],
+      audi: [
+        'https://images.unsplash.com/photo-1606016159991-dfe4f2746ad5?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1526726538690-5cbf956ae2fd?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?auto=format&fit=crop&w=800&q=80'
+      ],
+      'mercedes-benz': [
+        'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=80'
+      ]
+    };
+
+    // Diccionario de Modelos Icónicos Reconocidos
+    const MODEL_PHOTO_MAP = {
+      // Toyota
+      'supra': 'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=800&q=80',
+      'corolla': 'https://images.unsplash.com/photo-1621135802920-133df287f89c?auto=format&fit=crop&w=800&q=80',
+      'gr86': 'https://images.unsplash.com/photo-1590362891991-f776e747a588?auto=format&fit=crop&w=800&q=80',
+      'tacoma': 'https://images.unsplash.com/photo-1508974239320-0a029497e820?auto=format&fit=crop&w=800&q=80',
+      'tundra': 'https://images.unsplash.com/photo-1508974239320-0a029497e820?auto=format&fit=crop&w=800&q=80',
+      'land cruiser': 'https://images.unsplash.com/photo-1508974239320-0a029497e820?auto=format&fit=crop&w=800&q=80',
+      '4runner': 'https://images.unsplash.com/photo-1508974239320-0a029497e820?auto=format&fit=crop&w=800&q=80',
+
+      // Ferrari
+      'f8': 'https://images.unsplash.com/photo-1592198084033-aade902d1aae?auto=format&fit=crop&w=800&q=80',
+      '488': 'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=800&q=80',
+      '458': 'https://images.unsplash.com/photo-1592198084033-aade902d1aae?auto=format&fit=crop&w=800&q=80',
+      'roma': 'https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=80',
+      'sf90': 'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=800&q=80',
+      'laferrari': 'https://images.unsplash.com/photo-1592198084033-aade902d1aae?auto=format&fit=crop&w=800&q=80',
+
+      // Porsche
+      '911': 'https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&w=800&q=80',
+      'cayman': 'https://images.unsplash.com/photo-1611859328053-3cbc9f9399f4?auto=format&fit=crop&w=800&q=80',
+      'boxster': 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
+      'taycan': 'https://images.unsplash.com/photo-1611859328053-3cbc9f9399f4?auto=format&fit=crop&w=800&q=80',
+
+      // BMW
+      'm3': 'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=800&q=80',
+      'm4': 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=800&q=80',
+      'm5': 'https://images.unsplash.com/photo-1523983388277-336a66bf9bcd?auto=format&fit=crop&w=800&q=80',
+
+      // Tesla
+      'model s': 'https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&w=800&q=80',
+      'model 3': 'https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&w=800&q=80',
+      'cybertruck': 'https://images.unsplash.com/photo-1571127236794-81c0bbfe1ce3?auto=format&fit=crop&w=800&q=80',
+
+      // Ford
+      'mustang': 'https://images.unsplash.com/photo-1584345604476-8ec5e12e42dd?auto=format&fit=crop&w=800&q=80',
+      'gt': 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80',
+      'f-150': 'https://images.unsplash.com/photo-1508974239320-0a029497e820?auto=format&fit=crop&w=800&q=80',
+
+      // Lamborghini
+      'aventador': 'https://images.unsplash.com/photo-1544829099-b9a0c07fad1a?auto=format&fit=crop&w=800&q=80',
+      'huracan': 'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=800&q=80',
+      'urus': 'https://images.unsplash.com/photo-1525609004556-c46c7d6cf023?auto=format&fit=crop&w=800&q=80',
+
+      // Audi
+      'r8': 'https://images.unsplash.com/photo-1606016159991-dfe4f2746ad5?auto=format&fit=crop&w=800&q=80',
+      'rs6': 'https://images.unsplash.com/photo-1526726538690-5cbf956ae2fd?auto=format&fit=crop&w=800&q=80',
+
+      // Mercedes
+      'amg gt': 'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&w=800&q=80'
+    };
+
+    // Resolver imagen garantizando que coincida SIEMPRE con la marca seleccionada
+    function resolveCardImage(brand, modelName, modelId) {
+      if (!brand) return 'https://images.unsplash.com/photo-1592198084033-aade902d1aae?auto=format&fit=crop&w=800&q=80';
+      const brandKey = (brand.id || '').toLowerCase();
+      const lower = (modelName || '').toLowerCase();
+
+      // 1. Coincidencia con modelo específico
+      for (const [key, url] of Object.entries(MODEL_PHOTO_MAP)) {
+        if (lower.includes(key)) {
+          return url;
+        }
+      }
+
+      // 2. Galería exclusiva de la marca (Garantiza que Toyota siempre sea Toyota, Ferrari siempre Ferrari, etc.)
+      const gallery = BRAND_GALLERIES[brandKey] || BRAND_GALLERIES['ferrari'];
+      const idNum = Math.abs(parseInt(modelId, 10)) || (modelName ? modelName.length : 1);
+      return gallery[idNum % gallery.length];
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. Sistema de Sonido Unificado con Control de Detención Inmediata
+    // -------------------------------------------------------------------------
+    let activeAudioInstance = null;
+    let globalAudioCtx = null;
+    const audioStateListeners = new Set();
+
+    function notifyAudioChange(isPlaying) {
+      audioStateListeners.forEach(fn => {
+        try { fn(isPlaying); } catch(e) {}
+      });
+    }
+
+    function getAudioContext() {
+      if (!globalAudioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          globalAudioCtx = new AudioContextClass();
+        }
+      }
+      if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
+        globalAudioCtx.resume();
+      }
+      return globalAudioCtx;
+    }
+
+    // Desbloquear audio en el primer clic de la página
+    window.addEventListener('click', () => {
+      getAudioContext();
+    }, { once: true });
+
+    // Detener de forma absoluta e inmediata cualquier sonido en reproducción
+    function stopAllAudio() {
+      if (activeAudioInstance) {
+        try {
+          activeAudioInstance.pause();
+          activeAudioInstance.currentTime = 0;
+        } catch (err) {}
+        activeAudioInstance = null;
+      }
+      notifyAudioChange(false);
+    }
+
+    // Sintetizador para vehículos eléctricos (Tesla)
+    function playElectricWarpSound() {
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+
+        const osc = ctx.createOscillator();
+        const oscHarmonic = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+
+        osc.type = 'sine';
+        oscHarmonic.type = 'triangle';
+
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(1450, now + 0.5);
+        osc.frequency.exponentialRampToValueAtTime(2600, now + 1.1);
+
+        oscHarmonic.frequency.setValueAtTime(360, now);
+        oscHarmonic.frequency.exponentialRampToValueAtTime(2900, now + 0.5);
+        oscHarmonic.frequency.exponentialRampToValueAtTime(5200, now + 1.1);
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(800, now);
+        filter.frequency.linearRampToValueAtTime(4500, now + 0.5);
+
+        gain.gain.setValueAtTime(0.01, now);
+        gain.gain.linearRampToValueAtTime(0.35, now + 0.15);
+        gain.gain.linearRampToValueAtTime(0.25, now + 0.8);
+        gain.gain.linearRampToValueAtTime(0.001, now + 1.25);
+
+        osc.connect(filter);
+        oscHarmonic.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now);
+        oscHarmonic.start(now);
+        osc.stop(now + 1.3);
+        oscHarmonic.stop(now + 1.3);
+      } catch (err) {
+        console.warn("Electric audio warning:", err);
+      }
+    }
+
+    // Reproducción de la pista de escape real
+    function playOriginalEngineSound(soundUrl, onEndCallback) {
+      stopAllAudio();
+
+      if (!soundUrl) {
+        // Vehículo Eléctrico Supersónico (Tesla)
+        notifyAudioChange(true);
+        playElectricWarpSound();
+        setTimeout(() => {
+          notifyAudioChange(false);
+          if (onEndCallback) onEndCallback();
+        }, 1300);
+        return;
+      }
+
+      try {
+        const audio = new Audio(soundUrl);
+        audio.volume = 0.95;
+        activeAudioInstance = audio;
+        notifyAudioChange(true);
+
+        const handleFinish = () => {
+          if (activeAudioInstance === audio) {
+            activeAudioInstance = null;
+          }
+          notifyAudioChange(false);
+          if (onEndCallback) onEndCallback();
+        };
+
+        audio.onended = handleFinish;
+        audio.onerror = handleFinish;
+
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(err => {
+            console.warn("Autoplay bloqueado o formato incompatible, activando sintetizador:", err);
+            playElectricWarpSound();
+            setTimeout(handleFinish, 1200);
+          });
+        }
+      } catch (err) {
+        console.warn("Audio error:", err);
+        notifyAudioChange(false);
+        if (onEndCallback) onEndCallback();
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 4. Componente de Instrumentación: Tacómetro / Velocímetro SVG Animado
+    // -------------------------------------------------------------------------
+    function AnimatedGauge({ value, max, label, unit, color }) {
+      const radius = 42;
+      const circumference = 2 * Math.PI * radius;
+      const progress = Math.min(1, Math.max(0, value / max));
+      const strokeDashoffset = circumference - progress * circumference;
+
+      return (
+        <div className="gauge-card">
+          <div className="gauge-svg-wrap">
+            <svg className="gauge-svg" viewBox="0 0 100 100">
+              <circle
+                className="gauge-circle-bg"
+                cx="50"
+                cy="50"
+                r={radius}
+              />
+              <circle
+                className="gauge-circle-val"
+                cx="50"
+                cy="50"
+                r={radius}
+                stroke={color || 'var(--accent-cyan)'}
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+              />
+            </svg>
+            <div className="gauge-number" style={{ color: color || '#fff' }}>
+              {value}
+            </div>
+          </div>
+          <div className="gauge-title">
+            {label} <span style={{ color: color || 'var(--accent-cyan)' }}>({unit})</span>
+          </div>
+        </div>
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // 5. Componente Modal: Cockpit Inspector (Toda la info en el portal)
+    // -------------------------------------------------------------------------
+    function VehicleCockpitModal({ vehicle, brand, onClose }) {
+      const [wikiData, setWikiData] = useState(null);
+      const [loadingWiki, setLoadingWiki] = useState(true);
+      const [activeTab, setActiveTab] = useState('specs');
+      const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+
+      // Suscripción al estado de audio global
+      useEffect(() => {
+        const handleState = (playing) => setIsPlayingAudio(playing);
+        audioStateListeners.add(handleState);
+        return () => {
+          audioStateListeners.delete(handleState);
+          stopAllAudio(); // Detener audio al cerrar inspector
+        };
+      }, []);
+
+      // Resolver sonido exacto del modelo o de la marca
+      const modelSound = useMemo(() => {
+        return resolveModelSound(vehicle.Model_Name, brand);
+      }, [vehicle, brand]);
+
+      // Búsqueda inteligente en Wikipedia con Generator para obtener foto en 1000px e historia
+      useEffect(() => {
+        let isMounted = true;
+        setLoadingWiki(true);
+
+        const fetchDetails = async () => {
+          try {
+            const query = `${brand.name} ${vehicle.Model_Name} car`;
+            const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=1&prop=pageimages|extracts&pithumbsize=1000&exintro=1&explaintext=1&format=json&origin=*`;
+            
+            const res = await fetch(searchUrl);
+            if (res.ok) {
+              const data = await res.json();
+              const page = data.query?.pages ? Object.values(data.query.pages)[0] : null;
+              if (page && isMounted) {
+                setWikiData({
+                  title: page.title,
+                  extract: page.extract,
+                  thumbnail: page.thumbnail,
+                  originalimage: page.originalimage || page.thumbnail
+                });
+                setLoadingWiki(false);
+                return;
+              }
+            }
+          } catch (e) {
+            console.warn("Wikipedia fetch error:", e);
+          }
+
+          if (isMounted) {
+            setWikiData(null);
+            setLoadingWiki(false);
+          }
+        };
+
+        fetchDetails();
+
+        return () => {
+          isMounted = false;
+        };
+      }, [vehicle, brand]);
+
+      const handlePlayModelAudio = () => {
+        playOriginalEngineSound(modelSound.url);
+      };
+
+      const handleStopAudio = () => {
+        stopAllAudio();
+      };
+
+      // Especificaciones dinámicas calculadas
+      const specs = useMemo(() => {
+        const name = (vehicle.Model_Name || '').toLowerCase();
+        let hp = 450;
+        let speed = 295;
+        let zeroToHundred = 3.6;
+        let torque = 550;
+        let engine = brand.engine;
+
+        if (name.includes('gt3') || name.includes('f8') || name.includes('plaid') || name.includes('amg') || name.includes('nismo') || name.includes('revuelto')) {
+          hp = 720;
+          speed = 335;
+          zeroToHundred = 2.8;
+          torque = 780;
+        } else if (name.includes('corolla') || name.includes('yaris') || name.includes('civic') || name.includes('focus')) {
+          hp = 180;
+          speed = 215;
+          zeroToHundred = 7.6;
+          torque = 240;
+          engine = '2.0L 4-Cilindros VVT-i DOHC';
+        } else if (name.includes('mustang') || name.includes('m3') || name.includes('m4') || name.includes('c63')) {
+          hp = 505;
+          speed = 290;
+          zeroToHundred = 3.8;
+          torque = 650;
+        }
+
+        return { hp, speed, zeroToHundred, torque, engine };
+      }, [vehicle, brand]);
+
+      // Imagen garantizada: Foto Wikipedia en 1000px o foto auténtica de la marca
+      const fallbackImg = resolveCardImage(brand, vehicle.Model_Name, vehicle.Model_ID);
+      const displayImg = wikiData?.thumbnail?.source || wikiData?.originalimage?.source || fallbackImg;
+
+      return (
+        <div className="modal-overlay" onClick={onClose}>
+          <div className="modal-cockpit" onClick={(e) => e.stopPropagation()}>
+            
+            {/* Header del Modal */}
+            <div className="modal-header">
+              <div className="modal-title-group">
+                <h2>{brand.name} {vehicle.Model_Name}</h2>
+                <p>NHTSA Global Model ID: #{vehicle.Model_ID} &bull; Make ID: #{vehicle.Make_ID}</p>
+              </div>
+              <button className="modal-close-btn" onClick={onClose} title="Cerrar Inspector">
+                &times;
+              </button>
+            </div>
+
+            {/* Contenido Principal */}
+            <div className="modal-content">
+
+              {/* Banner Fotográfico en Alta Resolución */}
+              <div className="modal-hero-banner">
+                <img src={displayImg} alt={vehicle.Model_Name} />
+                <div className="modal-hero-overlay">
+                  <div>
+                    <span className="spec-pill" style={{ borderColor: brand.color, color: brand.color }}>
+                      {brand.country} {brand.flag}
+                    </span>
+                    <span className="spec-pill" style={{ marginLeft: '0.5rem' }}>
+                      {brand.tagline}
+                    </span>
+                  </div>
+
+                  {/* Controles de Audio: Reproducir y Detener */}
+                  <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <button 
+                      className="btn-primary" 
+                      onClick={handlePlayModelAudio} 
+                      style={{ 
+                        background: isPlayingAudio ? 'linear-gradient(135deg, #00f2fe, #4facfe)' : undefined,
+                        transform: isPlayingAudio ? 'scale(1.02)' : undefined
+                      }}
+                    >
+                      <span>{isPlayingAudio ? '🔊' : '🔥'}</span> 
+                      {isPlayingAudio ? 'REPRODUCIENDO SONIDO...' : 'ESCUCHAR ESCAPE ORIGINAL'}
+                    </button>
+
+                    {isPlayingAudio && (
+                      <button 
+                        className="btn-stop" 
+                        onClick={handleStopAudio}
+                        title="Detener sonido del motor inmediatamente"
+                      >
+                        <span>⏹️</span> DETENER SONIDO
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Pista de Audio Identificada */}
+              <div className="audio-track-badge">
+                <div className="equalizer-bar">
+                  <div className={`eq-col ${isPlayingAudio ? 'animating' : ''}`}></div>
+                  <div className={`eq-col ${isPlayingAudio ? 'animating' : ''}`}></div>
+                  <div className={`eq-col ${isPlayingAudio ? 'animating' : ''}`}></div>
+                  <div className={`eq-col ${isPlayingAudio ? 'animating' : ''}`}></div>
+                  <div className={`eq-col ${isPlayingAudio ? 'animating' : ''}`}></div>
+                </div>
+                <span>Grabación de Audio Real: <strong>{modelSound.name}</strong></span>
+              </div>
+
+              {/* Selector de Pestañas del Inspector */}
+              <div className="toolbar-wrap" style={{ padding: '0.5rem 1rem' }}>
+                <div className="filter-categories">
+                  <button 
+                    className={`filter-pill ${activeTab === 'specs' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('specs')}
+                  >
+                    ⚡ Telemetría y Prestaciones
+                  </button>
+                  <button 
+                    className={`filter-pill ${activeTab === 'dossier' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('dossier')}
+                  >
+                    📖 Dossier e Historia Enciclopédica
+                  </button>
+                  <button 
+                    className={`filter-pill ${activeTab === 'json' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('json')}
+                  >
+                    📄 Datos de API en Crudo (REST)
+                  </button>
+                </div>
+              </div>
+
+              {/* Vista 1: Telemetría y Tacómetros */}
+              {activeTab === 'specs' && (
+                <>
+                  <div className="gauges-grid">
+                    <AnimatedGauge 
+                      value={isPlayingAudio ? 8200 : specs.hp} 
+                      max={isPlayingAudio ? 9000 : 1200} 
+                      label={isPlayingAudio ? "R.P.M. Motor" : "Potencia"} 
+                      unit={isPlayingAudio ? "RPM" : "HP"} 
+                      color={isPlayingAudio ? "#ff0055" : brand.color} 
+                    />
+                    <AnimatedGauge 
+                      value={specs.speed} 
+                      max={400} 
+                      label="Vel. Máxima" 
+                      unit="km/h" 
+                      color="#00f2fe" 
+                    />
+                    <AnimatedGauge 
+                      value={specs.zeroToHundred} 
+                      max={10} 
+                      label="0 a 100 km/h" 
+                      unit="seg" 
+                      color="#ff0055" 
+                    />
+                    <AnimatedGauge 
+                      value={specs.torque} 
+                      max={1200} 
+                      label="Par Motor" 
+                      unit="Nm" 
+                      color="#f59e0b" 
+                    />
+                  </div>
+
+                  <div className="specs-dossier-grid">
+                    <div className="dossier-item">
+                      <div className="dossier-label">Motor & Bloque</div>
+                      <div className="dossier-val">{specs.engine}</div>
+                    </div>
+                    <div className="dossier-item">
+                      <div className="dossier-label">Transmisión</div>
+                      <div className="dossier-val">{brand.transmission}</div>
+                    </div>
+                    <div className="dossier-item">
+                      <div className="dossier-label">Sistema de Tracción</div>
+                      <div className="dossier-val">{brand.drive}</div>
+                    </div>
+                    <div className="dossier-item">
+                      <div className="dossier-label">Fabricante y Origen</div>
+                      <div className="dossier-val">{brand.name} ({brand.country})</div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Vista 2: Dossier Enciclopédico de la API */}
+              {activeTab === 'dossier' && (
+                <div className="encyclopedia-box">
+                  <div className="encyclopedia-title">
+                    <span>🏛️</span> Información Oficial Documentada de Wikipedia API
+                  </div>
+                  {loadingWiki ? (
+                    <div className="loading-spinner"></div>
+                  ) : wikiData?.extract ? (
+                    <div>
+                      <p className="encyclopedia-text">{wikiData.extract}</p>
+                      {wikiData.title && (
+                        <p style={{ marginTop: '1rem', color: 'var(--accent-cyan)', fontSize: '0.85rem' }}>
+                          Artículo indexado: <strong>{wikiData.title}</strong>
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="encyclopedia-text">
+                      El modelo <strong>{brand.name} {vehicle.Model_Name}</strong> está oficialmente catalogado en la base de datos mundial del Departamento de Transporte y la NHTSA bajo el código <code>#{vehicle.Model_ID}</code>. Este vehículo incorpora los estándares de ingeniería y diseño de alto rendimiento característicos de {brand.name}.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Vista 3: JSON Raw */}
+              {activeTab === 'json' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    <span>Payload REST recibido de la API</span>
+                    <button 
+                      className="btn-sm" 
+                      onClick={() => navigator.clipboard.writeText(JSON.stringify({ vehicle, wikiData, specs, modelSound }, null, 2))}
+                    >
+                      Copiar JSON
+                    </button>
+                  </div>
+                  <pre className="raw-json-panel">
+                    {JSON.stringify({ vehicle, wikiData, specs, modelSound }, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {/* Botón de Salida */}
+              <div className="modal-actions-bar">
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  Visualizando información integrada en vivo &bull; Sin redirecciones externas
+                </span>
+                <button className="btn-rev" onClick={onClose}>
+                  CERRAR INSPECTOR
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // 6. Aplicación Principal React (APEX // DRIVE)
+    // -------------------------------------------------------------------------
+    function App() {
+      const [selectedBrand, setSelectedBrand] = useState(BRANDS_DATABASE[0]);
+      const [modelsList, setModelsList] = useState([]);
+      const [loadingModels, setLoadingModels] = useState(false);
+      const [searchTerm, setSearchTerm] = useState('');
+      const [inspectedVehicle, setInspectedVehicle] = useState(null);
+      const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+
+      // Suscripción al estado de audio unificado
+      useEffect(() => {
+        const handleState = (playing) => setIsPlayingAudio(playing);
+        audioStateListeners.add(handleState);
+        return () => audioStateListeners.delete(handleState);
+      }, []);
+
+      // Efecto para actualizar el color de luz ambiental
+      useEffect(() => {
+        const glow = document.getElementById('ambientGlow');
+        if (glow) {
+          glow.style.setProperty('--brand-color', selectedBrand.color);
+        }
+      }, [selectedBrand]);
+
+      // Consumo de la API NHTSA para obtener los modelos de la marca seleccionada
+      useEffect(() => {
+        let isMounted = true;
+        setLoadingModels(true);
+        setSearchTerm('');
+
+        const fetchModels = async () => {
+          try {
+            const brandQuery = selectedBrand.id.split(' ')[0];
+            const res = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformake/${brandQuery}?format=json`);
+            if (!res.ok) throw new Error('Error al consultar modelos');
+            const data = await res.json();
+
+            if (isMounted) {
+              setModelsList(data.Results || []);
+              setLoadingModels(false);
+            }
+          } catch (err) {
+            console.error(err);
+            if (isMounted) {
+              setModelsList([]);
+              setLoadingModels(false);
+            }
+          }
+        };
+
+        fetchModels();
+
+        return () => {
+          isMounted = false;
+        };
+      }, [selectedBrand]);
+
+      // Filtrado en vivo de los modelos obtenidos
+      const filteredModels = useMemo(() => {
+        return modelsList.filter(item => {
+          const name = (item.Model_Name || '').toLowerCase();
+          const matchesSearch = name.includes(searchTerm.toLowerCase().trim()) || String(item.Model_ID).includes(searchTerm);
+          return matchesSearch;
+        });
+      }, [modelsList, searchTerm]);
+
+      const handleBrandSelect = (brand) => {
+        setSelectedBrand(brand);
+        playOriginalEngineSound(brand.soundUrl);
+      };
+
+      const handleInspect = (vehicle) => {
+        setInspectedVehicle(vehicle);
+      };
+
+      const handleHeroSoundClick = () => {
+        if (isPlayingAudio) {
+          stopAllAudio();
+        } else {
+          playOriginalEngineSound(selectedBrand.soundUrl);
+        }
+      };
+
+      const handleStopAudioClick = () => {
+        stopAllAudio();
+      };
+
+      return (
+        <>
+          {/* Header Bar */}
+          <header className="header-nav">
+            <div className="nav-wrapper">
+              <a href="#" className="brand-logo">
+                <div className="brand-icon" style={{ background: `linear-gradient(135deg, ${selectedBrand.color}, #ff5e00)` }}>
+                  <span>{selectedBrand.emblem}</span>
+                </div>
+                <div className="brand-title">
+                  APEX<span>//DRIVE</span>
+                </div>
+              </a>
+              <div className="nav-controls">
+                <span className="nav-badge">SHOWROOM INTERACTIVO EN REACT</span>
+
+                {/* Botón de Reproducción de Sonido */}
+                <button 
+                  className={`sound-toggle-btn ${isPlayingAudio ? 'active' : ''}`}
+                  onClick={handleHeroSoundClick}
+                  title="Haz clic para escuchar el sonido original de este motor"
+                >
+                  <div className="equalizer-bar" style={{ marginRight: '0.4rem' }}>
+                    <div className={`eq-col ${isPlayingAudio ? 'animating' : ''}`}></div>
+                    <div className={`eq-col ${isPlayingAudio ? 'animating' : ''}`}></div>
+                    <div className={`eq-col ${isPlayingAudio ? 'animating' : ''}`}></div>
+                  </div>
+                  <span>{isPlayingAudio ? '🔥 SONANDO...' : `🔊 ESCUCHAR MOTOR ${selectedBrand.name.toUpperCase()}`}</span>
+                </button>
+
+                {/* Botón Rojo para Detener el Sonido Inmediatamente */}
+                {isPlayingAudio && (
+                  <button 
+                    className="sound-stop-btn"
+                    onClick={handleStopAudioClick}
+                    title="Detener el sonido inmediatamente"
+                  >
+                    <span>⏹️</span> DETENER SONIDO
+                  </button>
+                )}
+              </div>
+            </div>
+          </header>
+
+          <main className="app-container">
+
+            {/* Hero Showcase de la Marca Seleccionada */}
+            <section className="hero-showcase">
+              <div>
+                <div className="hero-tag">
+                  <span>{selectedBrand.flag}</span> {selectedBrand.country} &bull; {selectedBrand.tagline}
+                </div>
+                <h1 className="hero-title">
+                  {selectedBrand.name}
+                </h1>
+                <p className="hero-description">
+                  Explora el catálogo oficial de modelos mundiales de {selectedBrand.name} en tiempo real. Selecciona cualquier vehículo para inspeccionar su telemetría, motorización y fotografía de alta resolución sin salir del portal.
+                </p>
+                <div className="hero-action-row">
+                  <button 
+                    className="btn-primary"
+                    style={{ background: `linear-gradient(135deg, ${selectedBrand.color}, #ff5e00)` }}
+                    onClick={() => handleInspect({ Model_Name: selectedBrand.heroModel, Model_ID: 101, Make_ID: 999 })}
+                  >
+                    <span>⚡</span> INSPECCIONAR {selectedBrand.heroModel}
+                  </button>
+
+                  <button className="btn-rev" onClick={handleHeroSoundClick}>
+                    <span>🔊</span> ESCUCHAR MOTOR ORIGINAL
+                  </button>
+
+                  {/* Botón de Detención en el Hero */}
+                  {isPlayingAudio && (
+                    <button className="btn-stop" onClick={handleStopAudioClick}>
+                      <span>⏹️</span> DETENER MOTOR
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Telemetría y Preview del Modelo Insignia */}
+              <div className="hero-car-preview">
+                <div className="hero-img-wrap">
+                  <img src={selectedBrand.heroImg} alt={selectedBrand.heroModel} />
+                </div>
+                <div className="hero-hud-telemetry">
+                  <div className="telemetry-item">
+                    <div className="telemetry-val" style={{ color: selectedBrand.color }}>{selectedBrand.heroHp}</div>
+                    <div className="telemetry-label">Potencia</div>
+                  </div>
+                  <div className="telemetry-item">
+                    <div className="telemetry-val" style={{ color: 'var(--accent-cyan)' }}>{selectedBrand.heroSpeed}</div>
+                    <div className="telemetry-label">Vel. Punta</div>
+                  </div>
+                  <div className="telemetry-item">
+                    <div className="telemetry-val" style={{ color: '#ff0055' }}>{selectedBrand.heroZeroToHundred}</div>
+                    <div className="telemetry-label">0 - 100 km/h</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Selector de Fabricantes Mundiales */}
+            <section className="brands-section">
+              <div className="section-head">
+                <h2 className="section-title">
+                  <span>🏁</span> Fabricantes Mundiales
+                </h2>
+                <span className="section-count">{BRANDS_DATABASE.length} Marcas Internacionales</span>
+              </div>
+
+              <div className="brands-grid">
+                {BRANDS_DATABASE.map(b => (
+                  <button
+                    key={b.id}
+                    className={`brand-card-btn ${selectedBrand.id === b.id ? 'active' : ''}`}
+                    style={{ '--brand-accent': b.color }}
+                    onClick={() => handleBrandSelect(b)}
+                  >
+                    <span className="brand-card-emblem">{b.emblem}</span>
+                    <span className="brand-card-name">{b.name}</span>
+                    <span className="brand-card-country">{b.flag} {b.country}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {/* Explorador de Modelos */}
+            <section className="brands-section">
+              <div className="section-head">
+                <h2 className="section-title">
+                  <span>🚘</span> Catálogo de Modelos: {selectedBrand.name}
+                </h2>
+                <span className="section-count">
+                  {loadingModels ? 'Cargando modelos...' : `${filteredModels.length} de ${modelsList.length} modelos disponibles`}
+                </span>
+              </div>
+
+              {/* Toolbar de Búsqueda en Tiempo Real */}
+              <div className="toolbar-wrap">
+                <div className="search-input-box">
+                  <span style={{ color: 'var(--accent-cyan)' }}>🔍</span>
+                  <input
+                    type="text"
+                    placeholder={`Buscar en los modelos de ${selectedBrand.name} (ej. GT3, F8, Plaid, Supra, M3, Corolla, RAV4)...`}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  {searchTerm && (
+                    <button 
+                      onClick={() => setSearchTerm('')} 
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Grilla de Tarjetas de Modelos */}
+              {loadingModels ? (
+                <div className="empty-state">
+                  <div className="loading-spinner"></div>
+                  <p>Consultando la API pública de modelos de vehículos...</p>
+                </div>
+              ) : filteredModels.length === 0 ? (
+                <div className="empty-state">
+                  <p>No se encontraron modelos coincidentes con "{searchTerm}".</p>
+                </div>
+              ) : (
+                <div className="vehicles-grid">
+                  {filteredModels.slice(0, 60).map((vehicle, idx) => {
+                    const cardImg = resolveCardImage(selectedBrand, vehicle.Model_Name, vehicle.Model_ID);
+                    return (
+                      <div 
+                        key={vehicle.Model_ID || idx} 
+                        className="car-card"
+                        onClick={() => handleInspect(vehicle)}
+                      >
+                        <div className="car-thumb-wrap">
+                          <img 
+                            src={cardImg} 
+                            alt={vehicle.Model_Name} 
+                            loading="lazy" 
+                          />
+                          <span className="car-id-tag">ID #{vehicle.Model_ID}</span>
+                        </div>
+                        <div className="car-body">
+                          <div>
+                            <div className="car-make-name">{selectedBrand.name}</div>
+                            <div className="car-model-name">{vehicle.Model_Name}</div>
+                          </div>
+                          <div>
+                            <div className="car-specs-row">
+                              <span>Origen: {selectedBrand.country}</span>
+                              <span>{selectedBrand.flag}</span>
+                            </div>
+                            <button className="car-inspect-btn">
+                              <span>⚡</span> INSPECCIONAR MODELO
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+          </main>
+
+          {/* Modal Cockpit Inspector (Toda la info en el portal, sin salir) */}
+          {inspectedVehicle && (
+            <VehicleCockpitModal
+              vehicle={inspectedVehicle}
+              brand={selectedBrand}
+              onClose={() => setInspectedVehicle(null)}
+            />
+          )}
+
+          {/* Footer */}
+          <footer className="footer-bar">
+            <div className="footer-content">
+              <p><strong>APEX // DRIVE</strong> &bull; Portal de Inteligencia Automotriz y Catálogo Mundial de Vehículos</p>
+              <p>Desarrollado en React 18 &bull; Consumiendo APIs Públicas REST (NHTSA vPIC & Wikipedia Intelligence)</p>
+              <p>&copy; 2026 Dise&ntilde;o de Sistemas de Internet &bull; Universidad Nacional de Ingenier&iacute;a (UNI)</p>
+            </div>
+          </footer>
+        </>
+      );
+    }
+
+    // Montar la aplicación React en el DOM
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+
+</html>
